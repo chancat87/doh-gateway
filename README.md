@@ -164,4 +164,4 @@ https://doh.yourdomain.com/my-dns/Phone
 
 ## License
 
-MIT
+ [MIT License](LICENSE)
