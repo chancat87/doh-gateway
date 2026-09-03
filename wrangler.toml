@@ -3,7 +3,5 @@ main = "_worker.js"
 compatibility_date = "2024-09-01"
 
 [vars]
-SECRET_PATH = "/my-secret-path"
-UPSTREAM_BASE = "https://dns.nextdns.io/YOUR_CONFIG_ID"
-ENABLE_CACHE = "true"
-CACHE_TTL = "120"
+SECRET_PATH = "/my-secret-token"
+UPSTREAM_BASE = "https://dns.nextdns.io/YOUR_ID"
