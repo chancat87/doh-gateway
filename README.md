@@ -110,7 +110,7 @@
 ```text
 https://doh.yourdomain.com/my-dns/OpenWrt,104.21.14.243
 ```
-> **排坑说明**：末尾的 `,104.21.14.243` 是 Passwall2 原生支持的 Bootstrap 语法。因为部分纯 IPv4 的 VPS 代理节点在尝试连接 Cloudflare 时，可能会优先解析出 CF 的 IPv6 地址导致拨号失败断网。显式指定一个 Cloudflare 的 IPv4 地址（随便一个能用的cf ip即可），可以彻底避免这一断流问题。
+> **排坑说明**：末尾的 `,104.21.14.243` 是 Passwall2 原生支持的 Bootstrap 语法。因为部分纯 IPv4 的 VPS 代理节点在尝试连接 Cloudflare 时，可能会优先解析出 CF 的 IPv6 地址导致拨号失败断网。(ping你绑定的域名得到的ip即可），可以彻底避免这一断流问题。
 
 ### 2. Clash / OpenClash
 在配置文件的 `dns.nameserver` 字段中添加：
