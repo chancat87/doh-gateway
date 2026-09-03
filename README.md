@@ -13,6 +13,7 @@
 2. **隐藏私有配置与防止盗刷**：NextDNS、Control D 这类服务都带有你的专属账户 ID；自建的 AdGuard Home 也有固定的服务器 IP。如果直接把原地址填在各种设备上或暴露在公网，很容易被扫描器探测并刷爆免费请求额度。通过本项目，只有访问你设定的专属路径（Token）才会处理，别人访问一律 404。
 3. **解决 CDN 丢失客户端真实 IP 的问题**：普通反代脚本如果直接转发，上游 DNS 只能拿到 Cloudflare 节点的机房 IP，导致 ECS（EDNS Client Subnet）失效，国内或海外的视频流、下载 CDN 会被错误调度到十万八千里外。本项目会自动提取客户端公网 IP 写入 `X-Forwarded-For`，让上游权威 DNS 进行准确的就近调度。
 4. **统一多设备管理**：路由器、电脑、手机可以共用同一个反代域名，只需在 URL 末尾加个设备名标签（如 `/Token/OpenWrt`、`/Token/Phone`），NextDNS 后台就能自动分类统计每台设备的日志。
+5. 我写这个项目其主要目的是给openwrt上的插件passwall2 远程DNS使用的
 
 ---
 
@@ -32,9 +33,9 @@
 在 Cloudflare 后台添加以下两个环境变量即可，源码无需任何改动：
 
 | 变量名 | 必填 | 示例 | 说明 |
-| :--- | :---: | :--- | :--- |
-| `SECRET_PATH` | 是 | `/my-secret-token` | 你的专属访问路径（Token），必须以 `/` 开头 |
-| `UPSTREAM_BASE` | 是 | `https://dns.nextdns.io/8df6ae` | 你要反代的上游 DNS 完整基础地址 |
+| --- | :---: | --- | --- |
+| `SECRET_PATH` | 是 | `/my-dns` | 你的专属访问路径（Token），必须以 `/` 开头 |
+| `UPSTREAM_BASE` | 是 | `https://dns.nextdns.io/你的ID` | 你要反代的上游 DNS 完整基础地址 |
 
 > 注：网关默认已开启 120 秒边缘缓存，无需在环境变量中额外配置缓存参数。
 
@@ -49,7 +50,7 @@
 
 ## 部署教程
 
-本项目支持 Cloudflare Workers 和 Cloudflare Pages 两种方式。代码是通用的，任选一种部署即可。
+本项目支持 Cloudflare Workers 和 Cloudflare Pages 两种方式。任选一种部署即可。
 
 ### 方式一：部署到 Cloudflare Workers（推荐，最省心）
 
@@ -65,8 +66,8 @@
 3. **配置环境变量**：
    - 返回 Worker 详情页，点击 **设置** -> **变量和机密**；
    - 点击 **添加**，配置以下两个变量：
-     - 变量名：`SECRET_PATH`，值填你的防盗路径（如 `/my-secret`）
-     - 变量名：`UPSTREAM_BASE`，值填你的目标 DNS（如 `https://dns.nextdns.io/8df6ae` 或 `https://dns.google/dns-query`）
+     - 变量名：`SECRET_PATH`，值填你的防盗路径（如 `/my-dns`）
+     - 变量名：`UPSTREAM_BASE`，值填你的目标 DNS（如 `https://dns.nextdns.io/你的ID` 或 `https://dns.google/dns-query`）
    - 点击 **部署** 保存。
 4. **绑定自定义域名**：
    - 在 Worker 详情页点击 **设置** -> **触发器**；
@@ -102,14 +103,14 @@
 
 ## 客户端配置指南
 
-假设你的绑定域名为 `doh.yourdomain.com`，防盗路径设为 `/my-secret`：
+假设你的绑定域名为 `doh.yourdomain.com`，防盗路径设为 `/my-dns`：
 
 ### 1. OpenWrt (Passwall2)
 进入 Passwall2 的 **DNS 设置** -> **远程 DNS** 中填入：
 ```text
-https://doh.yourdomain.com/my-secret/OpenWrt,104.21.14.243
+https://doh.yourdomain.com/my-dns/OpenWrt,104.21.14.243
 ```
-> **排坑说明**：末尾的 `,104.21.14.243` 是 Passwall2 原生支持的 Bootstrap 语法。因为部分纯 IPv4 的 VPS 代理节点在尝试连接 Cloudflare 时，可能会优先解析出 CF 的 IPv6 地址导致拨号失败断网。显式指定一个 Cloudflare 的 IPv4 地址（也可以换成你测出的 CF 优选 IP），可以彻底避免这一断流问题。
+> **排坑说明**：末尾的 `,104.21.14.243` 是 Passwall2 原生支持的 Bootstrap 语法。因为部分纯 IPv4 的 VPS 代理节点在尝试连接 Cloudflare 时，可能会优先解析出 CF 的 IPv6 地址导致拨号失败断网。显式指定一个 Cloudflare 的 IPv4 地址（随便一个能用的cf ip即可），可以彻底避免这一断流问题。
 
 ### 2. Clash / OpenClash
 在配置文件的 `dns.nameserver` 字段中添加：
@@ -117,13 +118,13 @@ https://doh.yourdomain.com/my-secret/OpenWrt,104.21.14.243
 dns:
   enable: true
   nameserver:
-    - 'https://doh.yourdomain.com/my-secret/OpenClash'
+    - 'https://doh.yourdomain.com/my-dns/OpenClash'
 ```
 
 ### 3. Android（系统私人 DNS / 第三方客户端）
 原生 Android 的「私人 DNS」仅支持填入纯域名/主机名（DoT 协议）。如果你使用的是支持完整 DoH URL 的客户端（如 Intra、Nebulo 或 PersonalDNSFilter），直接填入：
 ```text
-https://doh.yourdomain.com/my-secret/Phone
+https://doh.yourdomain.com/my-dns/Phone
 ```
 
 ### 4. iOS / macOS
@@ -132,7 +133,7 @@ https://doh.yourdomain.com/my-secret/Phone
 ### 5. 电脑浏览器（Chrome / Edge / Firefox）
 打开浏览器设置，搜索「安全 DNS」或「DoH」：
 - 启用安全 DNS 并选择「使用自定义提供商」；
-- 填入：`https://doh.yourdomain.com/my-secret/PC`
+- 填入：`https://doh.yourdomain.com/my-dns/PC`
 
 ---
 
@@ -148,13 +149,13 @@ https://doh.yourdomain.com/my-secret/Phone
 
 2. **连通性探活测试**（带上正确的 Token 访问，应该返回 `HTTP 200`，内容为 `OK`）：
    ```bash
-   curl -i "https://doh.yourdomain.com/my-secret"
-   curl -i "https://doh.yourdomain.com/my-secret/OpenWrt"
+   curl -i "https://doh.yourdomain.com/my-dns"
+   curl -i "https://doh.yourdomain.com/my-dns/OpenWrt"
    ```
 
 3. **真实 DNS 解析测试**（发送一段标准二进制 DNS 查询包，应该秒回 `HTTP 200` 且包含二进制应答）：
    ```bash
-   curl -i "https://doh.yourdomain.com/my-secret?dns=EjQBAAABAAAAAAAAA3d3dwZnb29nbGUDY29tAAABAAE" -H "accept: application/dns-message"
+   curl -i "https://doh.yourdomain.com/my-dns?dns=EjQBAAABAAAAAAAAA3d3dwZnb29nbGUDY29tAAABAAE" -H "accept: application/dns-message"
    ```
 
 如果你反代的是 NextDNS，测试完毕后登录 NextDNS 官方控制台，在设备列表里应该已经能实时看到刚才打上去的 `OpenWrt` 或 `PC` 设备的解析记录了。
