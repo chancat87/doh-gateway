@@ -39,7 +39,7 @@
 
 > 注：网关默认已开启 120 秒边缘缓存，无需在环境变量中额外配置缓存参数。
 
-### 常用上游地址参考
+### 常用UPSTREAM_BASE地址参考
 - **NextDNS**：`https://dns.nextdns.io/你的配置ID`
 - **自建 AdGuard Home**：`https://你的AGH域名/dns-query`
 - **Google Public DNS**：`https://dns.google/dns-query`
