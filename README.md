@@ -34,10 +34,47 @@
 
 | 变量名 | 必填 | 示例 | 说明 |
 | --- | :---: | --- | --- |
-| `SECRET_PATH` | 是 | `/my-dns` | 你的专属访问路径（Token），必须以 `/` 开头 |
+| `SECRET_PATH` | 是 | `/my-dns-8899` | 你的专属访问路径（Token），必须以 `/` 开头，**至少 4 个字符**（过短会拒绝启动以防止门禁失效）。自定一个别人猜不到的随机串，**不要用 `/dns`、`/query` 这类常见值** |
 | `UPSTREAM_BASE` | 是 | `https://dns.nextdns.io/你的ID` | 你要反代的上游 DNS 完整基础地址 |
 
-> 注：网关默认已开启 120 秒边缘缓存，无需在环境变量中额外配置缓存参数。
+可选变量（不配置则使用默认值）：
+
+| 变量名 | 必填 | 默认值 | 说明 |
+| --- | :---: | :---: | --- |
+| `ENABLE_CACHE` | 否 | `true` | 设为 `false` 可关闭边缘缓存（要求 DNS 变更立即生效时使用） |
+| `CACHE_TTL` | 否 | `120` | 边缘缓存秒数，仅在 `ENABLE_CACHE` 开启时生效 |
+
+### 🔧 如何配置（两种方式任选其一）
+
+**方式 A：Cloudflare 网页后台**（推荐，配合下方"部署教程 → 方式一"）
+
+进入你的 Worker → **设置 (Settings)** → **变量和机密 (Variables and Secrets)** → 点击 **添加**，逐条填写：
+
+| 变量名 | 填写示例 |
+| --- | --- |
+| `SECRET_PATH` | `/my-dns-8899` |
+| `UPSTREAM_BASE` | `https://dns.nextdns.io/1234567` |
+
+点击 **部署** 保存后立即生效。之后你的专属 DoH 地址就是：
+
+```text
+https://你的Worker域名/my-dns-8899          （探活，返回 OK）
+https://你的Worker域名/my-dns-8899/dns-query?dns=... （DoH 查询）
+```
+
+**方式 B：Wrangler CLI**
+
+直接编辑 `wrangler.toml` 的 `[vars]` 段（仓库中已自带骨架，替换占位值即可）：
+
+```toml
+[vars]
+SECRET_PATH = "/my-dns-8899"
+UPSTREAM_BASE = "https://dns.nextdns.io/1234567"
+# ENABLE_CACHE = "true"
+# CACHE_TTL = "120"
+```
+
+> 💡 设备名子路径支持中文与空格（如 `.../my-dns-8899/我的手机`），网关会正确编码后转发到上游，用于 NextDNS 按设备区分过滤规则。
 
 ### 常用UPSTREAM_BASE地址参考
 - **NextDNS**：`https://dns.nextdns.io/你的配置ID`

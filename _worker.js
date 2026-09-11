@@ -25,6 +25,17 @@ export default {
     const SECRET_PATH = ('/' + rawSecret.trim()).replace(/\/+/g, '/').replace(/\/+$/, '');
     const UPSTREAM_BASE = rawUpstream.trim().replace(/\/+$/, '');
 
+    // 门禁路径安全校验：配置过短（如仅 "/"）会折叠为空串导致门禁对全部路径放行，必须拒绝启动
+    if (SECRET_PATH.length < 4) {
+      return new Response(
+        '配置错误：SECRET_PATH 过短或非法，请设置至少 4 个字符的秘密路径',
+        {
+          status: 500,
+          headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+        }
+      );
+    }
+
     // 边缘缓存默认开启，缓存 120 秒（无需在环境变量中额外配置）
     const ENABLE_CACHE = env.ENABLE_CACHE !== 'false';
     const CACHE_TTL = parseInt(env.CACHE_TTL || '120', 10);
@@ -32,6 +43,11 @@ export default {
     const url = new URL(request.url);
     const { pathname, search, searchParams } = url;
     const method = request.method;
+
+    // pathname 是百分号编码形式；先还原为原始文本再做门禁匹配与设备名提取，
+    // 保证中文等非 ASCII 的 SECRET_PATH 与设备名能够正确匹配，且不会被二次编码
+    let decodedPathname = pathname;
+    try { decodedPathname = decodeURIComponent(pathname); } catch (_) { /* 含非法编码序列时保留原值 */ }
 
     // ------------------------------------------------------------------
     // 2. CORS 跨域预检放行 (OPTIONS)
@@ -51,7 +67,7 @@ export default {
     // ------------------------------------------------------------------
     // 3. 严格防盗门禁：不带路径直接访问根域名、或输错路径，一律返回 404 Not Found
     // ------------------------------------------------------------------
-    if (pathname !== SECRET_PATH && !pathname.startsWith(SECRET_PATH + '/')) {
+    if (decodedPathname !== SECRET_PATH && !decodedPathname.startsWith(SECRET_PATH + '/')) {
       return new Response('Not Found', { status: 404 });
     }
 
@@ -77,7 +93,7 @@ export default {
     // ------------------------------------------------------------------
     // 5. 提取设备名 (${deviceName}) 并自适应拼装上游目标
     // ------------------------------------------------------------------
-    const deviceName = pathname.slice(SECRET_PATH.length).replace(/^\/+/, '').replace(/\/+$/, '');
+    const deviceName = decodedPathname.slice(SECRET_PATH.length).replace(/^\/+/, '').replace(/\/+$/, '');
     let targetUrl = UPSTREAM_BASE;
     if (deviceName) {
       const encodedDevice = deviceName.split('/').map(encodeURIComponent).join('/');
@@ -121,6 +137,7 @@ export default {
       method: method,
       headers: upstreamHeaders,
       redirect: 'follow',
+      signal: AbortSignal.timeout(5000), // 上游 5 秒超时，防止 DoH 查询挂起占用连接
     };
 
     if (method === 'POST') {
